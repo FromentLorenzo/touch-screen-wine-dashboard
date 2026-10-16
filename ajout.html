@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#8E1E3A">
+<title>Ajouter une bouteille</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Même palette que le tableau de bord. Une colonne pensée pour le pouce, un écran par étape. */
+:root{
+  --bg:#F4F1F2; --surface:#FFFFFF; --sunk:#ECE6E8; --fg:#2A1F24; --muted:#76666D; --line:#E2D8DC;
+  --accent:#8E1E3A; --accent-ink:#FFFFFF;
+  --rouge:#8E1E3A; --blanc:#C9AE57; --rose:#E08C9A;
+  --ok:#2F7A4B; --ok-bg:#DDF0E3; --warn:#B4600C; --warn-bg:#FBEBD8;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#161013; --surface:#21191D; --sunk:#2A2025; --fg:#F2EAED; --muted:#A8969E; --line:#3A2D33;
+  --accent:#D65476; --accent-ink:#1A0F13;
+  --rouge:#C9405F; --blanc:#DCC26E; --rose:#EBA0AC;
+  --ok:#6CC08A; --ok-bg:#18301F; --warn:#F0A04B; --warn-bg:#3A2715;
+  color-scheme:dark}}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-top:max(16px, env(safe-area-inset-top, 0px));padding-bottom:max(24px, env(safe-area-inset-bottom, 0px))}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-family:var(--f-display);font-weight:400;font-size:1.7rem;margin:0;line-height:1.1}
+h2{font-family:var(--f-display);font-weight:400;font-size:1.3rem;margin:0}
+.back{color:var(--muted);text-decoration:none;font-size:.9rem;white-space:nowrap}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.mono{font-family:var(--f-mono)}
+
+.screen{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+.btn{border:0;border-radius:10px;padding:14px 18px;font-weight:600;font-size:1rem;text-align:center;width:100%}
+.btn-main{background:var(--accent);color:var(--accent-ink)}
+.btn-sec{background:var(--sunk)}
+.btn-ghost{background:transparent;border:1px solid var(--line)}
+.btn-big{padding:22px 18px;font-size:1.15rem}
+.row{display:flex;gap:10px}
+.row > *{flex:1;min-width:0}
+
+.lbl{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.field{display:flex;flex-direction:column;gap:6px}
+input.inp,textarea.inp{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:1rem}
+textarea.inp{resize:vertical;min-height:60px}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 13px;font-size:.92rem}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:52px;height:48px;border:0;border-radius:10px;background:var(--sunk);font-size:1.4rem;font-weight:600}
+.stepper output{font-family:var(--f-display);font-size:1.8rem;min-width:2ch;text-align:center}
+
+#reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:240px}
+.banner{border-radius:10px;padding:12px 14px;font-size:.92rem}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+.match{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.match b{text-transform:capitalize}
+.sum{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.sum dt{color:var(--muted);font-size:.85rem}
+.sum dd{margin:0;font-weight:600;text-transform:capitalize}
+.err{color:var(--warn);font-size:.9rem;margin:0}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Ajouter une bouteille</h1>
+    <a class="back" href="./">← La cave</a>
+  </header>
+
+  <!-- Mot de passe (une seule fois par appareil) -->
+  <form id="unlock" class="card" hidden>
+    <p style="margin:0" id="unlock-msg">Entre le mot de passe de la cave. Il sera retenu sur ce téléphone.</p>
+    <input id="unlock-in" class="inp" type="password" autocomplete="current-password" placeholder="Mot de passe">
+    <button class="btn btn-main" type="submit">Continuer</button>
+  </form>
+
+  <p id="status" class="muted small" style="margin:0">Chargement de la cave…</p>
+
+  <!-- 1. Accueil -->
+  <section id="s-home" class="screen" hidden>
+    <button class="btn btn-main btn-big" id="go-scan">Scanner le code-barres</button>
+    <button class="btn btn-sec" id="go-manual">Pas de code-barres</button>
+    <form id="code-form" class="row" style="align-items:center">
+      <input id="code-in" class="inp" inputmode="numeric" pattern="[0-9]*" placeholder="Ou taper les chiffres du code">
+      <button class="btn btn-ghost" type="submit" style="flex:0 0 auto;width:auto">OK</button>
+    </form>
+  </section>
+
+  <!-- 2. Scan -->
+  <section id="s-scan" class="screen" hidden>
+    <div id="reader"></div>
+    <p class="muted small" style="margin:0">Place le code-barres de l'étiquette dans le cadre.</p>
+    <p class="err" id="scan-err" hidden></p>
+    <button class="btn btn-sec" id="scan-cancel">Annuler</button>
+  </section>
+
+  <!-- 3. Code-barres déjà connu -->
+  <section id="s-found" class="screen" hidden>
+    <div class="banner ok" id="found-msg"></div>
+    <div id="found-list" class="screen" style="gap:8px"></div>
+    <button class="btn btn-sec" id="found-other">C'est un autre millésime</button>
+    <button class="btn btn-ghost" id="found-home">Annuler</button>
+  </section>
+
+  <!-- 4. Formulaire -->
+  <form id="s-form" class="screen" hidden novalidate>
+    <div class="banner" id="form-hint" hidden></div>
+
+    <div class="card">
+      <div class="field">
+        <label class="lbl" for="f-domaine">Domaine</label>
+        <input id="f-domaine" class="inp" list="dl-domaines" autocomplete="off" autocapitalize="words" placeholder="Ex. Gérard Courbis">
+        <datalist id="dl-domaines"></datalist>
+      </div>
+      <div class="field">
+        <label class="lbl" for="f-nom">Cuvée / appellation</label>
+        <input id="f-nom" class="inp" list="dl-noms" autocomplete="off" placeholder="Ex. Cornas">
+        <datalist id="dl-noms"></datalist>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <span class="lbl">Couleur</span>
+        <div class="chips" id="c-couleur"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Région</span>
+        <div class="chips" id="c-region"></div>
+        <input id="f-region-new" class="inp" placeholder="Nom de la nouvelle région" hidden>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label class="lbl" for="f-mill">Millésime</label>
+          <input id="f-mill" class="inp mono" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="2023">
+        </div>
+        <div class="field">
+          <span class="lbl">Quantité</span>
+          <div class="stepper"><button type="button" id="q-minus" aria-label="Une de moins">−</button><output id="q-val">1</output><button type="button" id="q-plus" aria-label="Une de plus">+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <span class="lbl">À boire à partir de</span>
+        <div class="chips" id="c-apartir"></div>
+        <input id="f-apartir" class="inp mono" inputmode="numeric" maxlength="4" placeholder="Année, ou laisse vide" hidden>
+      </div>
+      <div class="field">
+        <span class="lbl">À boire avant</span>
+        <div class="chips" id="c-avant"></div>
+        <input id="f-avant" class="inp mono" inputmode="numeric" maxlength="4" placeholder="Année" hidden>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label class="lbl" for="f-note">Note (facultatif)</label>
+        <textarea id="f-note" class="inp" placeholder="Ex. offert par Norbert"></textarea>
+      </div>
+      <p class="muted small" style="margin:0" id="f-barcode-line" hidden>Code-barres : <span class="mono" id="f-barcode"></span></p>
+    </div>
+
+    <p class="err" id="form-err" hidden></p>
+    <button class="btn btn-main" type="submit">Vérifier</button>
+    <button class="btn btn-ghost" type="button" id="form-cancel">Annuler</button>
+  </form>
+
+  <!-- 5. Confirmation -->
+  <section id="s-confirm" class="screen" hidden>
+    <div class="card">
+      <h2 id="c-title"></h2>
+      <dl class="sum" id="c-sum"></dl>
+    </div>
+    <p class="err" id="confirm-err" hidden></p>
+    <button class="btn btn-main" id="confirm-ok">Ajouter à la cave</button>
+    <button class="btn btn-sec" id="confirm-back">Modifier</button>
+  </section>
+
+  <!-- 6. Terminé -->
+  <section id="s-done" class="screen" hidden>
+    <div class="banner ok" id="done-msg"></div>
+    <button class="btn btn-main" id="done-again">Ajouter une autre bouteille</button>
+    <a class="btn btn-sec" href="./" style="text-decoration:none">Voir la cave</a>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script>
+var NOW = new Date().getFullYear();
+var COL = {rouge:"var(--rouge)", blanc:"var(--blanc)", "rosé":"var(--rose)"};
+var BOTTLES = [], REGIONS = [], READY = false;
+var draft = null;     // bouteille en cours de saisie
+var scanner = null;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function cap(s){ s=String(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(); }
+function couleurOf(c){ c=norm(c); return c.indexOf("blanc")>-1?"blanc":c.indexOf("ros")>-1?"rosé":"rouge"; }
+function year(v){ v=String(v||"").trim(); return /^\d{4}$/.test(v) ? +v : null; }
+
+function getToken(){ try { return localStorage.getItem("caveToken")||""; } catch(e){ return ""; } }
+function setToken(t){ try { localStorage.setItem("caveToken", t); } catch(e){} }
+
+function show(id){
+  ["s-home","s-scan","s-found","s-form","s-confirm","s-done"].forEach(function(s){ $(s).hidden = (s!==id); });
+  window.scrollTo(0,0);
+}
+
+/* ---------- Données de la cave ---------- */
+function api(params){
+  var q = Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
+  return fetch(API_URL+"?"+q+"&_="+Date.now()).then(function(r){
+    return r.text().then(function(t){
+      try { return JSON.parse(t); }
+      catch(e){ throw new Error("Réponse inattendue du script (code "+r.status+")."); }
+    });
+  });
+}
+
+function loadCave(){
+  $("status").hidden = false; $("status").textContent = "Chargement de la cave…";
+  api({action:"list", token:getToken()}).then(function(d){
+    if (d.auth){ $("unlock").hidden=false; $("unlock-msg").textContent = d.error+" Entre le mot de passe de la cave, il sera retenu sur ce téléphone."; $("status").hidden=true; show(null); return; }
+    if (!d.ok) throw new Error(d.error||"réponse invalide");
+    BOTTLES = d.bottles||[]; REGIONS = (d.regions||[]).slice();
+    READY = true; $("unlock").hidden = true; $("status").hidden = true;
+    fillLists(); show("s-home");
+  }).catch(function(err){
+    $("status").textContent = "Impossible de joindre le Google Sheet ("+err.message+"). Vérifie la connexion et recharge la page.";
+  });
+}
+
+function fillLists(){
+  var dom = {}, noms = {};
+  BOTTLES.forEach(function(b){ if (b.domaine) dom[cap(b.domaine)] = 1; if (b.nom && b.nom!=="?") noms[cap(b.nom)] = 1; });
+  $("dl-domaines").innerHTML = Object.keys(dom).sort().map(function(x){ return '<option value="'+esc(x)+'">'; }).join("");
+  $("dl-noms").innerHTML = Object.keys(noms).sort().map(function(x){ return '<option value="'+esc(x)+'">'; }).join("");
+}
+
+/* ---------- Scan ---------- */
+function loadScanLib(){
+  if (window.Html5Qrcode) return Promise.resolve();
+  return new Promise(function(ok, ko){
+    var s = document.createElement("script");
+    s.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+    s.onload = ok; s.onerror = function(){ ko(new Error("lecteur indisponible")); };
+    document.head.appendChild(s);
+  });
+}
+function startScan(){
+  show("s-scan"); $("scan-err").hidden = true;
+  loadScanLib().then(function(){
+    var F = Html5QrcodeSupportedFormats;
+    scanner = new Html5Qrcode("reader", {verbose:false,
+      formatsToSupport:[F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128],
+      experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
+    return scanner.start({facingMode:"environment"}, {fps:10, qrbox:function(w,h){ return {width:Math.floor(w*0.85), height:Math.floor(Math.min(h,w)*0.4)}; }},
+      function(text){ stopScan().then(function(){ if (navigator.vibrate) navigator.vibrate(60); onCode(text); }); },
+      function(){});
+  }).catch(function(err){
+    $("scan-err").hidden = false;
+    $("scan-err").textContent = "Caméra inaccessible ("+(err && err.message ? err.message : err)+"). Autorise la caméra pour ce site, ou tape les chiffres du code à la main.";
+  });
+}
+function stopScan(){
+  if (!scanner) return Promise.resolve();
+  var s = scanner; scanner = null;
+  return s.stop().catch(function(){}).then(function(){ try { s.clear(); } catch(e){} });
+}
+
+/* ---------- Après un code-barres ---------- */
+function onCode(code){
+  code = String(code||"").replace(/\D/g,"");
+  if (!code){ show("s-home"); return; }
+  var matches = BOTTLES.filter(function(b){ return b.barcode === code; });
+  if (matches.length){ showFound(code, matches); return; }
+  newDraft({barcode:code});
+  openForm("Recherche du vin dans Open Food Facts…", "");
+  fetch("https://world.openfoodfacts.org/api/v2/product/"+code+".json?fields=product_name,product_name_fr,brands")
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!draft || draft.barcode!==code) return;
+      var p = d && d.status===1 ? d.product : null;
+      var name = p ? (p.product_name_fr || p.product_name || "") : "";
+      var brand = p ? String(p.brands||"").split(",")[0].trim() : "";
+      if (name || brand){
+        if (brand && !$("f-domaine").value) $("f-domaine").value = brand;
+        if (name && !$("f-nom").value) $("f-nom").value = name;
+        hint("Trouvé dans Open Food Facts : vérifie et complète les champs.", "ok");
+      } else hint("Vin inconnu d'Open Food Facts. Remplis le formulaire, le code-barres sera retenu pour la prochaine fois.", "warn");
+    })
+    .catch(function(){ hint("Open Food Facts ne répond pas. Remplis le formulaire, le code-barres sera retenu.", "warn"); });
+}
+
+function showFound(code, matches){
+  $("found-msg").textContent = matches.length>1 ? "Ce vin est déjà dans la cave, en plusieurs millésimes." : "Ce vin est déjà dans la cave.";
+  $("found-list").innerHTML = matches.map(function(b, i){
+    return '<div class="match"><b>'+esc(cap(b.nom)||"Cuvée non notée")+'</b>'+
+      '<span class="muted small">'+esc(cap(b.domaine))+' · '+esc(b.region)+' · '+esc(b.millesime||"millésime non noté")+' · ×'+b.quantite+'</span>'+
+      '<button class="btn btn-main" data-plus="'+i+'" style="margin-top:6px">+1 sur cette bouteille</button></div>';
+  }).join("");
+  $("found-list").onclick = function(e){
+    var t = e.target.closest("[data-plus]"); if (!t) return;
+    plusOne(matches[+t.dataset.plus], t);
+  };
+  $("found-other").onclick = function(){
+    var b = matches[0];
+    newDraft({barcode:code, domaine:cap(b.domaine), nom:cap(b.nom), couleur:couleurOf(b.couleur), region:b.region, mill:""});
+    openForm("Mêmes informations que la bouteille déjà en cave : indique le nouveau millésime.", "ok");
+    $("f-mill").focus();
+  };
+  show("s-found");
+}
+
+function plusOne(b, btn){
+  btn.disabled = true; btn.textContent = "Enregistrement…";
+  var payload = JSON.stringify({token:getToken(), action:"adjust", region:b.region, row:b.row, delta:1, domaine:b.domaine, nom:b.nom});
+  api({action:"write", payload:payload}).then(function(res){
+    if (!res.ok) throw new Error(res.error);
+    b.quantite = res.quantite;
+    done(cap(b.nom)+" : il y en a maintenant "+res.quantite+" en cave.");
+  }).catch(function(err){ btn.disabled = false; btn.textContent = "+1 sur cette bouteille"; alertInline(btn, "Non enregistré : "+err.message); });
+}
+function alertInline(el, text){ var p = document.createElement("p"); p.className="err"; p.textContent=text; el.parentNode.appendChild(p); }
+
+/* ---------- Formulaire ---------- */
+function newDraft(o){
+  o = o||{};
+  draft = {barcode:o.barcode||"", couleur:o.couleur||"rouge", region:o.region||"", qty:1, apartir:"maintenant", avant:null};
+  $("f-domaine").value = o.domaine||""; $("f-nom").value = o.nom||"";
+  $("f-mill").value = o.mill!=null ? o.mill : String(NOW-1);
+  $("f-note").value = ""; $("f-region-new").value = ""; $("f-region-new").hidden = true;
+  $("f-apartir").value = ""; $("f-apartir").hidden = true; $("f-avant").value = ""; $("f-avant").hidden = true;
+  $("q-val").textContent = "1";
+  $("f-barcode-line").hidden = !draft.barcode; $("f-barcode").textContent = draft.barcode;
+  $("form-err").hidden = true;
+  renderChips();
+}
+function openForm(text, kind){ hint(text, kind); show("s-form"); }
+function hint(text, kind){
+  var h = $("form-hint");
+  if (!text){ h.hidden = true; return; }
+  h.hidden = false; h.className = "banner "+(kind||""); h.textContent = text;
+}
+
+function chipRow(el, opts, current, key){
+  $(el).innerHTML = opts.map(function(o){
+    return '<button type="button" class="chip" data-key="'+key+'" data-v="'+esc(o.v)+'" aria-pressed="'+(String(current)===String(o.v))+'">'+(o.dot?'<span class="dot" style="background:'+o.dot+'"></span>':'')+esc(o.label)+'</button>';
+  }).join("");
+}
+function renderChips(){
+  chipRow("c-couleur", [{v:"rouge",label:"Rouge",dot:COL.rouge},{v:"blanc",label:"Blanc",dot:COL.blanc},{v:"rosé",label:"Rosé",dot:COL["rosé"]}], draft.couleur, "couleur");
+  var regs = REGIONS.map(function(r){ return {v:r, label:cap(r)}; });
+  regs.push({v:"__new", label:"+ Autre région"});
+  var curReg = draft.region && REGIONS.indexOf(draft.region)<0 ? "__new" : draft.region;
+  chipRow("c-region", regs, curReg, "region");
+  if (curReg==="__new"){ $("f-region-new").hidden = false; if (draft.region && draft.region!=="__new") $("f-region-new").value = draft.region; }
+
+  var m = year($("f-mill").value) || NOW;
+  var ap = [{v:"maintenant",label:"Dès maintenant"},{v:m+2,label:String(m+2)},{v:m+3,label:String(m+3)},{v:m+5,label:String(m+5)},{v:"__autre",label:"Autre année"},{v:"",label:"Je ne sais pas"}];
+  chipRow("c-apartir", ap, draft.apartir==null?"":draft.apartir, "apartir");
+  var av = [{v:m+3,label:String(m+3)+" (3 ans)"},{v:m+5,label:String(m+5)+" (5 ans)"},{v:m+10,label:String(m+10)+" (10 ans)"},{v:m+15,label:String(m+15)+" (15 ans)"},{v:"__autre",label:"Autre année"},{v:"",label:"Je ne sais pas"}];
+  chipRow("c-avant", av, draft.avant==null?"":draft.avant, "avant");
+}
+
+document.addEventListener("click", function(e){
+  var c = e.target.closest(".chip[data-key]"); if (!c || !draft) return;
+  var key = c.dataset.key, v = c.dataset.v;
+  if (key==="couleur") draft.couleur = v;
+  if (key==="region"){ draft.region = v; $("f-region-new").hidden = (v!=="__new"); if (v==="__new") $("f-region-new").focus(); }
+  if (key==="apartir"){ draft.apartir = v==="__autre" ? "__autre" : v; $("f-apartir").hidden = (v!=="__autre"); if (v==="__autre") $("f-apartir").focus(); }
+  if (key==="avant"){ draft.avant = v==="__autre" ? "__autre" : v; $("f-avant").hidden = (v!=="__autre"); if (v==="__autre") $("f-avant").focus(); }
+  renderChips();
+});
+
+// Choisir un domaine connu préremplit sa région et sa couleur habituelles.
+$("f-domaine").addEventListener("change", function(){
+  var d = norm(this.value); if (!d) return;
+  var same = BOTTLES.filter(function(b){ return norm(b.domaine)===d; });
+  if (!same.length) return;
+  if (!draft.region) draft.region = same[0].region;
+  draft.couleur = couleurOf(same[0].couleur);
+  renderChips();
+});
+$("f-mill").addEventListener("input", function(){
+  // les raccourcis de dates suivent le millésime ; une date choisie qui n'est plus proposée est oubliée
+  var keepAp = draft.apartir==="maintenant" || draft.apartir==="" || draft.apartir==="__autre";
+  var keepAv = draft.avant==null || draft.avant==="" || draft.avant==="__autre";
+  if (!keepAp) draft.apartir = "maintenant";
+  if (!keepAv) draft.avant = null;
+  renderChips();
+});
+$("q-minus").onclick = function(){ draft.qty = Math.max(1, draft.qty-1); $("q-val").textContent = draft.qty; };
+$("q-plus").onclick = function(){ draft.qty = Math.min(99, draft.qty+1); $("q-val").textContent = draft.qty; };
+
+function collect(){
+  var regionName = draft.region==="__new" ? $("f-region-new").value.trim() : draft.region;
+  var apartir = draft.apartir==="__autre" ? $("f-apartir").value.trim() : String(draft.apartir==null?"":draft.apartir);
+  var avant = draft.avant==="__autre" ? $("f-avant").value.trim() : String(draft.avant==null?"":draft.avant);
+  return {domaine:$("f-domaine").value.trim(), nom:$("f-nom").value.trim(), couleur:draft.couleur, region:regionName,
+    millesime:$("f-mill").value.trim(), quantite:draft.qty, apartir:apartir, avant:avant,
+    note:$("f-note").value.trim(), barcode:draft.barcode};
+}
+function check(b){
+  if (!b.domaine && !b.nom) return "Indique au moins le domaine ou la cuvée.";
+  if (!b.region) return "Choisis une région.";
+  if (b.millesime && !year(b.millesime)) return "Le millésime doit être une année sur 4 chiffres (ou laisse vide).";
+  if (b.apartir && b.apartir!=="maintenant" && !year(b.apartir)) return "« À boire à partir de » doit être une année sur 4 chiffres.";
+  if (b.avant && !year(b.avant)) return "« À boire avant » doit être une année sur 4 chiffres.";
+  if (year(b.apartir) && year(b.avant) && year(b.apartir) > year(b.avant)) return "La date « à partir de » est après la date « avant ».";
+  return null;
+}
+
+$("s-form").addEventListener("submit", function(e){
+  e.preventDefault();
+  var b = collect(), err = check(b);
+  if (err){ $("form-err").hidden = false; $("form-err").textContent = err; return; }
+  $("form-err").hidden = true;
+  draft.final = b;
+  var isNew = REGIONS.map(norm).indexOf(norm(b.region))<0;
+  $("c-title").textContent = cap(b.nom) || cap(b.domaine);
+  var rows = [["Domaine",b.domaine||"—"],["Cuvée",b.nom||"—"],["Couleur",b.couleur],["Région",b.region+(isNew?" (nouvel onglet)":"")],
+    ["Millésime",b.millesime||"non noté"],["Quantité",String(b.quantite)],
+    ["À boire",[b.apartir?(b.apartir==="maintenant"?"dès maintenant":"à partir de "+b.apartir):"",b.avant?"avant "+b.avant:""].filter(Boolean).join(", ")||"non renseigné"]];
+  if (b.note) rows.push(["Note",b.note]);
+  if (b.barcode) rows.push(["Code-barres",b.barcode]);
+  $("c-sum").innerHTML = rows.map(function(r){ return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>'; }).join("");
+  $("confirm-err").hidden = true; $("confirm-ok").disabled = false; $("confirm-ok").textContent = "Ajouter à la cave";
+  show("s-confirm");
+});
+
+$("confirm-ok").onclick = function(){
+  var b = draft.final, btn = this;
+  btn.disabled = true; btn.textContent = "Enregistrement…";
+  var payload = JSON.stringify(Object.assign({token:getToken(), action:"add"}, b));
+  api({action:"write", payload:payload}).then(function(res){
+    if (!res.ok) throw new Error(res.error);
+    BOTTLES.push(Object.assign({}, b, {region:res.region, row:res.row}));
+    if (REGIONS.indexOf(res.region)<0) REGIONS.push(res.region);
+    fillLists();
+    done((b.quantite>1 ? b.quantite+" bouteilles ajoutées" : "Bouteille ajoutée")+" dans l'onglet « "+res.region+" ».");
+  }).catch(function(err){
+    btn.disabled = false; btn.textContent = "Réessayer";
+    $("confirm-err").hidden = false; $("confirm-err").textContent = "Non enregistré : "+err.message;
+    if (/mot de passe/i.test(err.message)){ setToken(""); $("unlock").hidden = false; }
+  });
+};
+
+function done(text){ draft = null; $("done-msg").textContent = text; show("s-done"); }
+
+/* ---------- Boutons ---------- */
+$("go-scan").onclick = startScan;
+$("go-manual").onclick = function(){ newDraft({}); openForm("", ""); };
+$("code-form").addEventListener("submit", function(e){ e.preventDefault(); var v = $("code-in").value; $("code-in").value = ""; onCode(v); });
+$("scan-cancel").onclick = function(){ stopScan().then(function(){ show("s-home"); }); };
+$("found-home").onclick = function(){ show("s-home"); };
+$("form-cancel").onclick = function(){ draft = null; show("s-home"); };
+$("confirm-back").onclick = function(){ show("s-form"); };
+$("done-again").onclick = function(){ show("s-home"); };
+$("unlock").addEventListener("submit", function(e){
+  e.preventDefault(); var v = $("unlock-in").value.trim(); if (!v) return;
+  setToken(v); $("unlock-in").value = ""; loadCave();
+});
+
+(function(){
+  try {
+    var m = location.search.match(/[?&]cle=([^&]+)/);
+    if (m){ setToken(decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
+  } catch(e){}
+})();
+loadCave();
+</script>
+</body>
+</html>
