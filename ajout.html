@@ -79,6 +79,7 @@ textarea.inp{resize:vertical;min-height:60px}
 .sum{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
 .sum dt{color:var(--muted);font-size:.85rem}
 .sum dd{margin:0;font-weight:600;text-transform:capitalize}
+.banner .sum dd{text-transform:none}
 .err{color:var(--warn);font-size:.9rem;margin:0}
 </style>
 </head>
@@ -304,20 +305,95 @@ function onCode(code){
   if (matches.length){ showFound(code, matches); return; }
   newDraft({barcode:code});
   openForm("Recherche du vin dans Open Food Facts…", "");
-  fetch("https://world.openfoodfacts.org/api/v2/product/"+code+".json?fields=product_name,product_name_fr,brands")
+  fetch("https://world.openfoodfacts.org/api/v2/product/"+code+".json?fields=product_name,product_name_fr,generic_name_fr,brands,categories_tags")
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (!draft || draft.barcode!==code) return;
-      var p = d && d.status===1 ? d.product : null;
-      var name = p ? (p.product_name_fr || p.product_name || "") : "";
-      var brand = p ? String(p.brands||"").split(",")[0].trim() : "";
-      if (name || brand){
-        if (brand && !$("f-domaine").value) $("f-domaine").value = brand;
-        if (name && !$("f-nom").value) $("f-nom").value = name;
-        hint("Trouvé dans Open Food Facts : vérifie et complète les champs.", "ok");
-      } else hint("Vin inconnu d'Open Food Facts. Remplis le formulaire, le code-barres sera retenu pour la prochaine fois.", "warn");
+      var sug = d && d.status===1 ? fromOFF(d.product) : null;
+      if (sug) suggest(sug);
+      else hint("Vin inconnu d'Open Food Facts. Remplis le formulaire, le code-barres sera retenu pour la prochaine fois.", "warn");
     })
     .catch(function(){ hint("Open Food Facts ne répond pas. Remplis le formulaire, le code-barres sera retenu.", "warn"); });
+}
+
+/* Régions reconnues dans le nom ou les catégories d'un produit, de la plus précise à la plus large.
+   tab : comment l'onglet s'appelle (sans accents) ; name : nom à donner si l'onglet n'existe pas encore. */
+var REGION_KEYS = [
+  {tab:/pic.?saint.?loup/, name:"Pic saint loup", keys:["pic saint loup","pic-saint-loup","pic st loup"]},
+  {tab:/larzac/, name:"Terrasse du larzac", keys:["larzac"]},
+  {tab:/costiere/, name:"Costière de Nîmes", keys:["costieres de nimes","costieres-de-nimes","costiere"]},
+  {tab:/ventoux/, name:"Ventoux", keys:["ventoux"]},
+  {tab:/beaujolais/, name:"Beaujolais", keys:["beaujolais","morgon","fleurie","moulin-a-vent","moulin a vent","brouilly","julienas","chenas","chiroubles","regnie","saint-amour"]},
+  {tab:/rhone/, name:"Vallée du Rhône", keys:["cotes du rhone","cotes-du-rhone","rhone","cornas","saint-joseph","saint joseph","st joseph","crozes","hermitage","cote rotie","cote-rotie","condrieu","chateauneuf","gigondas","vacqueyras","rasteau","cairanne","lirac","tavel","vinsobres"]},
+  {tab:/bordeaux/, name:"Bordeaux", keys:["bordeaux","medoc","pauillac","margaux","saint-emilion","saint emilion","pomerol","graves","pessac","sauternes","entre-deux-mers","saint-julien","saint-estephe","fronsac","blaye","cotes de bourg"]},
+  {tab:/bourgogne/, name:"Bourgogne", keys:["bourgogne","chablis","beaune","pommard","meursault","nuits","gevrey","vosne","macon","pouilly-fuisse","mercurey","givry","santenay","volnay","aloxe","corton","marsannay","saint-bris"]},
+  {tab:/roussillon/, name:"Roussillon", keys:["roussillon","collioure","banyuls","maury","rivesaltes","cotes catalanes"]},
+  {tab:/languedoc/, name:"Languedoc", keys:["languedoc","corbieres","minervois","saint-chinian","saint chinian","faugeres","pays d'oc","pays-d-oc","picpoul","fitou","la clape","herault"]},
+  {tab:/sud.?ouest/, name:"Sud ouest", keys:["sud-ouest","sud ouest","cahors","madiran","jurancon","gaillac","bergerac","buzet","fronton","duras","gascogne","irouleguy","marcillac","perigord"]},
+  {tab:/alsace/, name:"Pays d'alsace", keys:["alsace","gewurztraminer"]},
+  {tab:/loire/, name:"Pays de Loire", keys:["loire","sancerre","chinon","vouvray","muscadet","anjou","saumur","bourgueil","pouilly-fume","touraine","menetou"]},
+  {tab:/savoie/, name:"Savoie", keys:["savoie","apremont","mondeuse","chignin","jacquere"]},
+  {tab:/provence/, name:"Provence", keys:["provence","bandol","cassis","palette","bellet"]},
+  {tab:/champagne/, name:"Champagne", keys:["champagne"]},
+  {tab:/etranger/, name:"Etranger", keys:["rioja","ribera","priorat","barolo","barbaresco","chianti","toscana","valpolicella","prosecco","malbec","mendoza","porto","douro","rueda","tempranillo","spain","espagne","italie","italy","argentin","chile","chili"]}
+];
+function guessRegion(text){
+  var t = " "+norm(text).replace(/[^a-z0-9' -]+/g," ")+" ";
+  for (var i=0;i<REGION_KEYS.length;i++){
+    var r = REGION_KEYS[i];
+    for (var j=0;j<r.keys.length;j++){
+      if (t.indexOf(r.keys[j])>-1){
+        var tab = REGIONS.filter(function(x){ return r.tab.test(norm(x)); })[0];
+        return {region: tab || r.name, isNew: !tab};
+      }
+    }
+  }
+  return null;
+}
+
+function fromOFF(p){
+  if (!p) return null;
+  var name = String(p.product_name_fr || p.product_name || "").trim();
+  var brand = String(p.brands||"").split(",")[0].trim();
+  var cats = (p.categories_tags||[]).join(" ");
+  var all = [name, p.generic_name_fr||"", brand, cats.replace(/[a-z]{2}:/g," ").replace(/-/g," ")].join(" ");
+  var n = norm(all);
+  var couleur = /red.wines|vins.rouges|\brouge\b/.test(n) ? "rouge" : /rose.wines|vins.roses|\brose\b/.test(n) ? "rosé" : /white.wines|vins.blancs|\bblanc\b/.test(n) ? "blanc" : "";
+  var m = (name.match(/\b(19[5-9]\d|20[0-4]\d)\b/)||[])[1];
+  var mill = m && +m<=NOW ? m : "";
+  var cuvee = name.replace(/\b(19[5-9]\d|20[0-4]\d)\b/,"").replace(/\s*[-–]\s*\d+\s*(ml|cl|l)\b.*$/i,"").replace(/\s{2,}/g," ").trim();
+  if (brand && norm(cuvee).indexOf(norm(brand))===0) cuvee = cuvee.slice(brand.length).replace(/^[\s\-–,:]+/,"");
+  var reg = guessRegion(all);
+  var isWine = /wine|vin/.test(n);
+  if (!cuvee && !brand) return null;
+  return {domaine:brand, nom:cuvee, couleur:couleur, millesime:mill, region:reg, isWine:isWine, label:name};
+}
+
+// Montre ce qu'Open Food Facts a trouvé ; rien n'est rempli tant qu'on n'a pas accepté.
+function suggest(s){
+  var h = $("form-hint"), rows = [];
+  if (s.domaine) rows.push(["Domaine", s.domaine]);
+  if (s.nom) rows.push(["Cuvée", s.nom]);
+  if (s.couleur) rows.push(["Couleur", s.couleur]);
+  if (s.millesime) rows.push(["Millésime", s.millesime]);
+  if (s.region) rows.push(["Région", s.region.region+(s.region.isNew?" (nouvel onglet)":"")]);
+  h.hidden = false; h.className = "banner ok";
+  h.innerHTML = '<p style="margin:0 0 8px"><b>Trouvé dans Open Food Facts'+(s.isWine?'':' (attention : ce produit n\'est peut-être pas un vin)')+'</b></p>'+
+    '<dl class="sum" style="margin:0 0 12px">'+rows.map(function(r){ return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>'; }).join("")+'</dl>'+
+    '<div class="row"><button type="button" class="btn btn-main" id="sug-ok">Utiliser ces informations</button><button type="button" class="btn btn-ghost" id="sug-no">Ignorer</button></div>';
+  $("sug-ok").onclick = function(){
+    if (s.domaine) $("f-domaine").value = s.domaine;
+    if (s.nom) $("f-nom").value = s.nom;
+    if (s.couleur) draft.couleur = s.couleur;
+    if (s.millesime) $("f-mill").value = s.millesime;
+    if (s.region){
+      if (s.region.isNew){ draft.region = "__new"; $("f-region-new").value = s.region.region; }
+      else draft.region = s.region.region;
+    }
+    renderChips();
+    hint("Informations reprises d'Open Food Facts. Vérifie, puis complète la fenêtre de dégustation.", "ok");
+  };
+  $("sug-no").onclick = function(){ hint("", ""); };
 }
 
 function showFound(code, matches){
