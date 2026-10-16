@@ -177,7 +177,7 @@ function num(v){ v=(v||"").trim(); return /^\d{4}$/.test(v) ? +v : null; }
 function couleurOf(c){ c=c.toLowerCase(); return c.indexOf("blanc")>-1?"blanc":c.indexOf("ros")>-1?"rosé":"rouge"; }
 
 // Script Google relié au Sheet « Cave à vin »
-var API_URL = "https://script.google.com/macros/s/AKfycbwTbsw_eF0QyR0XoJnQNJgaumAmZlxWV5ey0Wh-KX49K9cpUSO1ZuPUTJ8IeGKu7sIkWA/exec";
+var API_URL = "https://script.google.com/macros/s/AKfycbyS3Zlu7Ofgj9-SczgvXpcoVec443EHzqJoyktPZUwOqxuv_O-ZDG7z2YVLFT2vlr0PQQ/exec";
 var LIVE = false, LAST = null;
 
 function cap(s){ s=(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
