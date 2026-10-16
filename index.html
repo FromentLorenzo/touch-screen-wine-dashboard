@@ -45,7 +45,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 32px;justify-content:space-between}
 .brand h1{font-family:var(--f-display);font-weight:400;font-size:2.1rem;line-height:1;margin:0;letter-spacing:-.01em}
 .brand p{margin:6px 0 0;color:var(--muted)}
-.add-link{display:inline-block;margin-top:10px;padding:8px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:600;text-decoration:none}
+.add-link{display:inline-block;margin-top:10px;padding:8px 14px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:600;text-decoration:none}
+.qr-card{align-items:center;text-align:center;max-width:420px}
+.qr-box{background:#fff;padding:14px;border-radius:12px;line-height:0}
+.qr-box svg,.qr-box img{width:240px;height:240px;max-width:100%}
+.qr-card a{color:var(--muted)}
 .stock{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap}
 .stat b{display:block;font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1}
 .stat span{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -125,7 +129,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="brand">
       <h1>Cave à vin</h1>
       <p id="today"></p>
-      <a class="add-link" href="ajout.html">+ Ajouter une bouteille</a>
+      <button class="add-link" id="add-open" type="button">+ Ajouter une bouteille</button>
     </div>
     <div class="stock">
       <div class="stat"><b id="total" class="mono"></b><span>bouteilles</span></div>
@@ -167,11 +171,22 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   </footer>
 </div>
 
+<div class="sheet" id="qr" hidden>
+  <div class="card qr-card" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+    <h3 id="qr-title" style="text-transform:none">Ajouter une bouteille</h3>
+    <p style="margin:0">Scanne ce code avec l'appareil photo de ton téléphone : la page d'ajout s'ouvre directement.</p>
+    <div class="qr-box" id="qr-box"></div>
+    <a id="qr-here" href="ajout.html">ou ajouter depuis cet écran</a>
+    <button class="close" id="qr-close" type="button">Fermer</button>
+  </div>
+</div>
+
 <div class="sheet" id="sheet" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="d-name" id="card"></div>
 </div>
 
 <script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 var NOW = new Date().getFullYear();
 var STATUT = {prio:"À boire vite", pret:"Prêt", garde:"À garder", inconnu:"Non renseigné"};
@@ -386,7 +401,27 @@ document.addEventListener("click", function(e){
   if (t.dataset.k){ state[t.dataset.k]=t.dataset.v; renderFilters(); renderList(); return; }
   if (t.dataset.id!=null) openSheet(+t.dataset.id);
 });
-document.addEventListener("keydown", function(e){ if (e.key==="Escape") closeSheet(); });
+document.addEventListener("keydown", function(e){ if (e.key==="Escape"){ closeSheet(); $("qr").hidden = true; } });
+
+// QR code vers la page d'ajout, avec le mot de passe de cet appareil pour que le téléphone n'ait rien à taper.
+function addUrl(){
+  var base = location.href.split("#")[0].split("?")[0].replace(/[^\/]*$/, "");
+  var t = getToken();
+  return base+"ajout.html"+(t ? "?cle="+encodeURIComponent(t) : "");
+}
+$("add-open").onclick = function(){
+  var url = addUrl();
+  $("qr-here").href = url;
+  try {
+    var q = qrcode(0, "M"); q.addData(url); q.make();
+    $("qr-box").innerHTML = q.createSvgTag({cellSize:6, margin:2, scalable:true});
+  } catch(e){
+    $("qr-box").innerHTML = '<p style="line-height:1.4;color:#2A1F24;margin:0">QR code indisponible sans connexion.</p>';
+  }
+  $("qr").hidden = false;
+};
+$("qr-close").onclick = function(){ $("qr").hidden = true; };
+$("qr").addEventListener("click", function(e){ if (e.target===this) this.hidden = true; });
 $("unlock").addEventListener("submit", function(e){
   e.preventDefault();
   var v = $("unlock-in").value.trim();
