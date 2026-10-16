@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cave à vin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: écran de cadre 10" paysage. Bandeau (date, total, répartition) ; à gauche « À ouvrir en priorité », à droite l'explorateur filtrable ; fiche bouteille en panneau. */
+:root{
+  --bg:#F4F1F2; --surface:#FFFFFF; --sunk:#ECE6E8; --fg:#2A1F24; --muted:#76666D; --line:#E2D8DC;
+  --accent:#8E1E3A; --accent-ink:#FFFFFF;
+  --rouge:#8E1E3A; --blanc:#C9AE57; --rose:#E08C9A;
+  --prio:#B4600C; --prio-bg:#FBEBD8; --pret:#2F7A4B; --pret-bg:#DDF0E3; --garde:#4C5F86; --garde-bg:#E2E7F2; --inconnu-bg:#ECE6E8;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#161013; --surface:#21191D; --sunk:#2A2025; --fg:#F2EAED; --muted:#A8969E; --line:#3A2D33;
+  --accent:#D65476; --accent-ink:#1A0F13;
+  --rouge:#C9405F; --blanc:#DCC26E; --rose:#EBA0AC;
+  --prio:#F0A04B; --prio-bg:#3A2715; --pret:#6CC08A; --pret-bg:#18301F; --garde:#93A6CF; --garde-bg:#1F2639; --inconnu-bg:#2A2025;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#161013; --surface:#21191D; --sunk:#2A2025; --fg:#F2EAED; --muted:#A8969E; --line:#3A2D33;
+  --accent:#D65476; --accent-ink:#1A0F13;
+  --rouge:#C9405F; --blanc:#DCC26E; --rose:#EBA0AC;
+  --prio:#F0A04B; --prio-bg:#3A2715; --pret:#6CC08A; --pret-bg:#18301F; --garde:#93A6CF; --garde-bg:#1F2639; --inconnu-bg:#2A2025;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.4;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:16px}
+.app{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Bandeau */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 32px;justify-content:space-between}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:2.1rem;line-height:1;margin:0;letter-spacing:-.01em}
+.brand p{margin:6px 0 0;color:var(--muted)}
+.stock{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap}
+.stat b{display:block;font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1}
+.stat span{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.split{min-width:220px;flex:1}
+.split .bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--sunk)}
+.split .bar i{display:block;height:100%}
+.split .legend{display:flex;gap:14px;margin-top:6px;font-size:.8rem;color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+
+/* Grille principale */
+.main{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:400;font-size:1.3rem;margin:0;text-wrap:balance}
+.panel .sub{color:var(--muted);font-size:.85rem;margin:4px 0 12px}
+
+/* Liste priorité */
+.prio-list{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow:auto}
+.prio-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;
+  background:var(--prio-bg);border:0;border-radius:8px;padding:10px 12px}
+.prio-item .yr{font-family:var(--f-mono);font-size:.78rem;color:var(--prio);text-align:right;line-height:1.2}
+.prio-item .yr b{display:block;font-size:1.05rem}
+
+/* Explorateur */
+.search{width:100%;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.filters{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.chip{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:.85rem;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip small{opacity:.7;margin-left:4px}
+.count{color:var(--muted);font-size:.85rem;margin-bottom:8px}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;max-height:430px;overflow:auto;align-content:start}
+.wine{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;
+  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.wine:hover{border-color:var(--muted)}
+.swatch{width:10px;height:34px;border-radius:5px}
+.name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+.meta{font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+.qty{font-family:var(--f-mono);font-size:.85rem;color:var(--muted);text-align:right}
+.pill{display:inline-block;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:999px;margin-top:3px}
+.s-prio{background:var(--prio-bg);color:var(--prio)}
+.s-pret{background:var(--pret-bg);color:var(--pret)}
+.s-garde{background:var(--garde-bg);color:var(--garde)}
+.s-inconnu{background:var(--inconnu-bg);color:var(--muted)}
+.empty{color:var(--muted);padding:24px 8px;text-align:center}
+
+/* Fiche */
+.sheet{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:flex;align-items:center;justify-content:center;
+  padding:max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));z-index:10}
+.card{background:var(--surface);border-radius:14px;width:min(620px,100%);max-height:100%;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:16px}
+.card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.card h3{font-family:var(--f-display);font-weight:400;font-size:1.7rem;margin:0;line-height:1.1;text-transform:capitalize;text-wrap:balance}
+.card .dom{color:var(--muted);margin-top:4px;text-transform:capitalize}
+.close{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 12px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fact{background:var(--bg);border-radius:8px;padding:10px}
+.fact span{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.fact b{font-size:1.05rem;font-weight:600;text-transform:capitalize}
+.window h4{margin:0 0 6px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.window svg{width:100%;height:auto;display:block}
+.window p{margin:6px 0 0;font-size:.9rem}
+.stepper{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.stepper button{border:0;border-radius:8px;padding:10px 18px;font-weight:600}
+.btn-out{background:var(--accent);color:var(--accent-ink)}
+.btn-in{background:var(--sunk)}
+.stepper .n{font-family:var(--f-display);font-size:1.8rem;min-width:2ch;text-align:center}
+.note{font-size:.78rem;color:var(--muted)}
+.foot{color:var(--muted);font-size:.78rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:520px){.facts{grid-template-columns:repeat(2,minmax(0,1fr))}.brand h1{font-size:1.7rem}}
+@media (prefers-reduced-motion:no-preference){.wine,.prio-item{transition:border-color .15s, transform .15s}.wine:active,.prio-item:active{transform:scale(.985)}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Cave à vin</h1>
+      <p id="today"></p>
+    </div>
+    <div class="stock">
+      <div class="stat"><b id="total" class="mono"></b><span>bouteilles</span></div>
+      <div class="stat"><b id="ready" class="mono"></b><span>prêtes à boire</span></div>
+      <div class="split">
+        <div class="bar" id="split"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="panel" aria-labelledby="h-prio">
+      <h2 id="h-prio">À ouvrir en priorité</h2>
+      <p class="sub" id="prio-sub"></p>
+      <div class="prio-list" id="prio"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-cave">
+      <h2 id="h-cave">Toute la cave</h2>
+      <div class="filters">
+        <input id="q" class="search" type="search" placeholder="Chercher un domaine, une appellation, un millésime…" autocomplete="off">
+        <div class="chips" id="f-statut" role="group" aria-label="Statut"></div>
+        <div class="chips" id="f-couleur" role="group" aria-label="Couleur"></div>
+        <div class="chips" id="f-region" role="group" aria-label="Région"></div>
+      </div>
+      <div class="count" id="count"></div>
+      <div class="list" id="list"></div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <span id="src">Chargement des données…</span>
+    <form id="unlock" class="stepper" hidden style="width:100%">
+      <input id="unlock-in" class="search" type="password" autocomplete="current-password" placeholder="Mot de passe de la cave" style="flex:1;min-width:160px">
+      <button class="btn-out" type="submit">Afficher la cave</button>
+    </form>
+    <span>Mise à jour automatique toutes les 5 minutes.</span>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="d-name" id="card"></div>
+</div>
+
+<script>
+var NOW = new Date().getFullYear();
+var STATUT = {prio:"À boire vite", pret:"Prêt", garde:"À garder", inconnu:"Non renseigné"};
+
+function num(v){ v=(v||"").trim(); return /^\d{4}$/.test(v) ? +v : null; }
+function couleurOf(c){ c=c.toLowerCase(); return c.indexOf("blanc")>-1?"blanc":c.indexOf("ros")>-1?"rosé":"rouge"; }
+
+// Script Google relié au Sheet « Cave à vin »
+var API_URL = "https://script.google.com/macros/s/AKfycbwTbsw_eF0QyR0XoJnQNJgaumAmZlxWV5ey0Wh-KX49K9cpUSO1ZuPUTJ8IeGKu7sIkWA/exec";
+var LIVE = false, LAST = null;
+
+function cap(s){ s=(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+// Dernière liste chargée avec le mot de passe, gardée sur l'appareil pour le mode hors ligne.
+function getCache(){ try { var c = JSON.parse(localStorage.getItem("caveCache")||"null"); return c && c.bottles ? c : null; } catch(e){ return null; } }
+function setCache(list){ try { localStorage.setItem("caveCache", JSON.stringify({at:Date.now(), bottles:list})); } catch(e){} }
+function clearCache(){ try { localStorage.removeItem("caveCache"); } catch(e){} }
+
+var WINES = [], REGIONS = [];
+function load(list){
+  WINES = list.map(function(b, i){
+    var avantRaw = String(b.avant||"").trim().toLowerCase(), apRaw = String(b.apartir||"").trim().toLowerCase();
+    var avant = num(avantRaw), apartir = num(apRaw), now = apRaw==="maintenant", garder = avantRaw.indexOf("ne pas boire")>-1;
+    var nom = String(b.nom||"").trim();
+    var w = {id:i, region:cap(b.region), sheetRegion:b.region, row:b.row, rawDomaine:b.domaine, rawNom:b.nom,
+      domaine:cap(b.domaine)||"Domaine non noté", nom:(!nom||nom==="?")?"Cuvée non notée":cap(nom),
+      couleurRaw:String(b.couleur||"").trim()||"rouge", couleur:couleurOf(String(b.couleur||"rouge")),
+      mill:num(String(b.millesime||"")), qty:+b.quantite||0, avant:avant, apartir:apartir,
+      now:now, garder:garder, note:b.note||""};
+    if (garder) w.statut="garde";
+    else if (avant && avant<=NOW+1) w.statut="prio";
+    else if (apartir && apartir>NOW) w.statut="garde";
+    else if (avant || apartir || now) w.statut="pret";
+    else w.statut="inconnu";
+    return w;
+  });
+  REGIONS = [];
+  WINES.forEach(function(w){ if (REGIONS.indexOf(w.region)<0) REGIONS.push(w.region); });
+}
+
+var state = {q:"", statut:"tout", couleur:"tout", region:"tout"};
+var COL = {rouge:"var(--rouge)", blanc:"var(--blanc)", "rosé":"var(--rose)"};
+function $(s){ return document.getElementById(s); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function sum(arr){ return arr.reduce(function(a,w){return a+w.qty;},0); }
+function plural(n,s,p){ return n+" "+(n>1?(p||s+"s"):s); }
+
+function renderTop(){
+  var d = new Date();
+  $("today").textContent = d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  var tot = sum(WINES);
+  $("total").textContent = tot;
+  $("ready").textContent = sum(WINES.filter(function(w){return w.statut==="pret"||w.statut==="prio";}));
+  var bar="", leg="";
+  ["rouge","blanc","rosé"].forEach(function(c){
+    var n = sum(WINES.filter(function(w){return w.couleur===c;}));
+    bar += '<i style="width:'+(tot?n/tot*100:0)+'%;background:'+COL[c]+'"></i>';
+    leg += '<span><i class="dot" style="background:'+COL[c]+'"></i>'+c+' <span class="mono">'+n+'</span></span>';
+  });
+  $("split").innerHTML = bar; $("legend").innerHTML = leg;
+}
+
+function renderPrio(){
+  var p = WINES.filter(function(w){return w.statut==="prio" && w.qty>0;})
+    .sort(function(a,b){return a.avant-b.avant || (a.mill||0)-(b.mill||0);});
+  $("prio-sub").textContent = plural(sum(p),"bouteille")+" à boire avant fin "+(NOW+1)+", les plus anciennes d'abord.";
+  $("prio").innerHTML = p.length ? p.map(function(w){
+    return '<button class="prio-item" data-id="'+w.id+'">'+
+      '<span class="swatch" style="background:'+COL[w.couleur]+'"></span>'+
+      '<span style="min-width:0"><div class="name">'+esc(w.nom)+'</div><div class="meta">'+esc(w.domaine)+' · '+esc(w.region)+(w.mill?' · '+w.mill:'')+'</div></span>'+
+      '<span class="yr">avant<b>'+w.avant+'</b>×'+w.qty+'</span></button>';
+  }).join("") : '<p class="empty">'+(WINES.length?'Rien d\'urgent. Toutes les bouteilles ont encore le temps.':'La cave s\'affichera ici une fois le mot de passe saisi en bas de page.')+'</p>';
+}
+
+function chips(el, key, opts){
+  $(el).innerHTML = opts.map(function(o){
+    return '<button class="chip" data-k="'+key+'" data-v="'+esc(o[0])+'" aria-pressed="'+(state[key]===o[0])+'">'+esc(o[1])+(o[2]!=null?'<small>'+o[2]+'</small>':'')+'</button>';
+  }).join("");
+}
+function renderFilters(){
+  chips("f-statut","statut",[["tout","Tous statuts"],["prio",STATUT.prio],["pret","Prêts"],["garde",STATUT.garde],["inconnu",STATUT.inconnu]]);
+  chips("f-couleur","couleur",[["tout","Toutes couleurs"],["rouge","Rouge"],["blanc","Blanc"],["rosé","Rosé"]]);
+  var regs = REGIONS.map(function(r){ return [r, r, sum(WINES.filter(function(w){return w.region===r;}))]; })
+    .sort(function(a,b){return b[2]-a[2];});
+  chips("f-region","region",[["tout","Toutes régions"]].concat(regs));
+}
+
+function norm(s){ return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function renderList(){
+  var q = norm(state.q.trim());
+  var rows = WINES.filter(function(w){
+    if (state.statut!=="tout" && w.statut!==state.statut) return false;
+    if (state.couleur!=="tout" && w.couleur!==state.couleur) return false;
+    if (state.region!=="tout" && w.region!==state.region) return false;
+    if (q && norm([w.domaine,w.nom,w.region,w.couleurRaw,w.mill||"",w.note].join(" ")).indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){ var o={prio:0,pret:1,garde:2,inconnu:3}; return o[a.statut]-o[b.statut] || a.region.localeCompare(b.region) || a.domaine.localeCompare(b.domaine); });
+  $("count").textContent = plural(rows.length,"référence")+" · "+plural(sum(rows),"bouteille");
+  $("list").innerHTML = rows.length ? rows.map(function(w){
+    return '<button class="wine" data-id="'+w.id+'"'+(w.qty?'':' style="opacity:.5"')+'>'+
+      '<span class="swatch" style="background:'+COL[w.couleur]+'"></span>'+
+      '<span style="min-width:0"><div class="name">'+esc(w.nom)+'</div><div class="meta">'+esc(w.domaine)+' · '+esc(w.region)+'</div>'+
+      '<span class="pill s-'+w.statut+'">'+STATUT[w.statut]+'</span></span>'+
+      '<span class="qty">'+(w.mill||"—")+'<br>×'+w.qty+'</span></button>';
+  }).join("") : '<p class="empty">'+(WINES.length?'Aucune bouteille ne correspond. Essaie d\'enlever un filtre.':'Cave protégée par mot de passe.')+'</p>';
+}
+
+function windowSvg(w){
+  var y0=2000, y1=2046, W=560, H=58, x=function(y){return 10+(y-y0)/(y1-y0)*(W-20);};
+  var start = w.apartir || (w.now ? NOW : (w.mill || NOW));
+  var end = w.avant;
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Fenêtre de dégustation">';
+  s += '<rect x="10" y="20" width="'+(W-20)+'" height="10" rx="5" fill="var(--sunk)"/>';
+  if (!w.garder && (w.apartir||w.avant||w.now)){
+    var xe = end ? x(end) : x(y1);
+    s += '<rect x="'+x(start)+'" y="20" width="'+Math.max(6,xe-x(start))+'" height="10" rx="5" fill="'+(w.statut==="prio"?"var(--prio)":"var(--pret)")+'" opacity="'+(end?1:.45)+'"/>';
+  }
+  if (w.mill) s += '<circle cx="'+x(w.mill)+'" cy="25" r="4" fill="'+COL[w.couleur]+'"/>';
+  s += '<line x1="'+x(NOW)+'" x2="'+x(NOW)+'" y1="12" y2="38" stroke="var(--fg)" stroke-width="2"/>';
+  s += '<text x="'+x(NOW)+'" y="9" text-anchor="middle" font-size="10" fill="var(--fg)" font-family="IBM Plex Mono, monospace">'+NOW+'</text>';
+  [2000,2010,2020,2030,2040].forEach(function(y){ s+='<text x="'+x(y)+'" y="52" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">'+y+'</text>'; });
+  return s+'</svg>';
+}
+function windowText(w){
+  if (w.garder) return "Noté « ne pas boire » dans le fichier : bouteille à garder.";
+  var from = w.apartir ? "à partir de "+w.apartir : (w.now ? "dès maintenant" : null);
+  var to = w.avant ? "avant "+w.avant : null;
+  if (!from && !to) return "Pas de fenêtre de dégustation renseignée.";
+  return "À boire "+[from,to].filter(Boolean).join(", ")+".";
+}
+
+var opened = null;
+function openSheet(id){
+  var w = WINES[id]; opened = id;
+  $("card").innerHTML =
+    '<header><div><h3 id="d-name">'+esc(w.nom)+'</h3><div class="dom">'+esc(w.domaine)+'</div></div>'+
+    '<button class="close" id="close">Fermer</button></header>'+
+    '<div class="facts">'+
+      '<div class="fact"><span>Région</span><b>'+esc(w.region)+'</b></div>'+
+      '<div class="fact"><span>Couleur</span><b>'+esc(w.couleurRaw)+'</b></div>'+
+      '<div class="fact"><span>Millésime</span><b class="mono">'+(w.mill||"Non noté")+'</b></div>'+
+    '</div>'+
+    '<div class="window"><h4>Fenêtre de dégustation · <span class="pill s-'+w.statut+'">'+STATUT[w.statut]+'</span></h4>'+windowSvg(w)+'<p>'+windowText(w)+'</p></div>'+
+    (w.note?'<p style="margin:0">Note : '+esc(w.note)+'</p>':'')+
+    '<div><div class="stepper"><button class="btn-out" id="out">J\'en sors une</button><span class="n mono" id="n">'+w.qty+'</span><button class="btn-in" id="in">+1</button></div>'+
+    '<p class="note" id="msg">'+(LIVE && w.row ? "Chaque changement est enregistré dans le Google Sheet." : "Hors ligne : le changement restera sur cet écran.")+'</p>'+
+    '<div class="stepper" id="tok" hidden><input id="tok-in" class="search" type="password" placeholder="Mot de passe de la cave" style="flex:1;min-width:160px"><button class="btn-in" id="tok-save">Enregistrer</button></div></div>';
+  $("sheet").hidden = false;
+  $("close").focus();
+}
+function closeSheet(){ $("sheet").hidden = true; opened = null; }
+function renderAll(){ renderTop(); renderPrio(); renderFilters(); renderList(); }
+function getToken(){ try { return localStorage.getItem("caveToken")||""; } catch(e){ return ""; } }
+function setToken(t){ try { localStorage.setItem("caveToken", t); } catch(e){} }
+function msg(t){ var m=$("msg"); if (m) m.textContent=t; }
+function setQty(w, q){ w.qty=q; var n=$("n"); if (n && opened===w.id) n.textContent=q; renderAll(); }
+
+function bump(d){
+  if (opened==null) return;
+  var w = WINES[opened], before = w.qty, next = Math.max(0, before+d);
+  if (next===before) return;
+  if (!LIVE || !w.row){ setQty(w, next); msg("Hors ligne : le changement reste sur cet écran."); return; }
+  var token = getToken();
+  if (!token){ $("tok").hidden=false; $("tok-in").focus(); msg("Entre le mot de passe de la cave une première fois, il sera retenu sur cet appareil."); return; }
+  setQty(w, next); msg("Enregistrement…");
+  var payload = JSON.stringify({token:token, action:"adjust", region:w.sheetRegion,
+    row:w.row, delta:d, domaine:w.rawDomaine, nom:w.rawNom});
+  fetch(API_URL+"?action=write&payload="+encodeURIComponent(payload)+"&_="+Date.now())
+    .then(function(r){
+      return r.text().then(function(t){
+        try { return JSON.parse(t); }
+        catch(e){ throw new Error("Réponse inattendue du script (code "+r.status+") : "+t.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0,140)); }
+      });
+    })
+    .then(function(res){
+      if (res.ok){ setQty(w, res.quantite); msg("Enregistré dans le Google Sheet."); return; }
+      setQty(w, before); msg("Non enregistré : "+(res.error || "le Google Sheet a refusé le changement."));
+      if (/mot de passe/i.test(res.error||"")){ setToken(""); $("tok").hidden=false; }
+    })
+    .catch(function(err){
+      setQty(w, before);
+      msg("Non enregistré : "+(err && err.message && err.message.indexOf("Réponse")===0 ? err.message : "pas de connexion au Google Sheet. Réessaie dans un instant."));
+    });
+}
+
+function setSrc(){
+  var s = $("src");
+  if (LIVE) s.textContent = "Données en direct du Google Sheet · mises à jour à "+LAST.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+".";
+  else if (WINES.length){ var c = getCache(); s.textContent = "Hors ligne : dernière liste chargée le "+new Date(c?c.at:Date.now()).toLocaleString("fr-FR",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})+"."; }
+  else s.textContent = "Pas de connexion au Google Sheet.";
+}
+function refresh(){
+  if (opened!=null) return; // pas de rechargement pendant qu'une fiche est ouverte
+  fetch(API_URL+"?action=list&token="+encodeURIComponent(getToken())+"&_="+Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.auth){ LIVE = false; clearCache(); load([]); renderAll(); $("src").textContent = d.error+" Entre-le pour afficher la cave."; $("unlock").hidden = false; return; }
+      if (!d.ok || !d.bottles) throw new Error("réponse invalide");
+      $("unlock").hidden = true;
+      LIVE = true; LAST = new Date(); setCache(d.bottles); load(d.bottles); renderAll(); setSrc();
+    })
+    .catch(function(){ setSrc(); });
+}
+
+document.addEventListener("click", function(e){
+  var t = e.target.closest("button, .sheet");
+  if (!t) return;
+  if (t.id==="sheet" && e.target===t) return closeSheet();
+  if (t.id==="close") return closeSheet();
+  if (t.id==="out") return bump(-1);
+  if (t.id==="in") return bump(1);
+  if (t.id==="tok-save"){ var v=$("tok-in").value.trim(); if (v){ setToken(v); $("tok").hidden=true; msg("Mot de passe retenu. Tu peux refaire le changement."); if (!LIVE){ closeSheet(); refresh(); } } return; }
+  if (t.dataset.k){ state[t.dataset.k]=t.dataset.v; renderFilters(); renderList(); return; }
+  if (t.dataset.id!=null) openSheet(+t.dataset.id);
+});
+document.addEventListener("keydown", function(e){ if (e.key==="Escape") closeSheet(); });
+$("unlock").addEventListener("submit", function(e){
+  e.preventDefault();
+  var v = $("unlock-in").value.trim();
+  if (!v) return;
+  setToken(v); $("unlock-in").value = ""; $("src").textContent = "Vérification…"; refresh();
+});
+$("q").addEventListener("input", function(e){ state.q = e.target.value; renderList(); });
+
+(function(){
+  try {
+    var m = location.search.match(/[?&]cle=([^&]+)/);
+    if (m){ setToken(decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
+  } catch(e){}
+})();
+var cached = getToken() ? getCache() : null;
+load(cached ? cached.bottles : []); renderAll(); $("src").textContent = "Chargement de la cave…";
+refresh();
+setInterval(refresh, 5*60*1000);
+</script>
+
+</body>
+</html>
