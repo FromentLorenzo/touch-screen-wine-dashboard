@@ -125,6 +125,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .foot{color:var(--muted);font-size:.78rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media (max-width:520px){.facts{grid-template-columns:repeat(2,minmax(0,1fr))}.brand h1{font-size:1.7rem}}
 @media (prefers-reduced-motion:no-preference){.wine,.prio-item{transition:border-color .15s, transform .15s}.wine:active,.prio-item:active{transform:scale(.985)}}
+#veille{position:fixed;top:0;left:0;right:0;bottom:0;z-index:50;background:rgba(0,0,0,.55)}
 </style>
 </head>
 <body>
@@ -175,6 +176,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <span>Mise à jour automatique toutes les 5 minutes.</span>
   </footer>
 </div>
+
+<div id="veille" hidden></div>
 
 <div class="sheet" id="qr" hidden>
   <div class="card qr-card" role="dialog" aria-modal="true" aria-labelledby="qr-title">
@@ -462,6 +465,15 @@ var cached = getToken() ? getCache() : null;
   }
   document.addEventListener("visibilitychange", keepAwake);
   keepAwake();
+})();
+// Veille : après 10 min sans contact, un voile sombre couvre l'écran ; le premier appui le retire sans rien ouvrir.
+(function(){
+  var DELAI = 10*60*1000, t = null, v = $("veille");
+  function arm(){ clearTimeout(t); t = setTimeout(function(){ closeSheet(); $("qr").hidden = true; v.hidden = false; }, DELAI); }
+  v.addEventListener("pointerdown", function(e){ e.preventDefault(); e.stopPropagation(); v.hidden = true; arm(); }, true);
+  v.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); }, true);
+  document.addEventListener("pointerdown", function(){ if (v.hidden) arm(); }, true);
+  arm();
 })();
 load(cached ? cached.bottles : []); renderAll(); $("src").textContent = "Chargement de la cave…";
 refresh();
