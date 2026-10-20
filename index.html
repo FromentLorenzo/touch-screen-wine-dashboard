@@ -446,6 +446,23 @@ $("q").addEventListener("input", function(e){ state.q = e.target.value; renderLi
   } catch(e){}
 })();
 var cached = getToken() ? getCache() : null;
+// Borne : plein écran au premier appui (quand la page est ouverte dans Firefox plutôt que comme appli),
+// et écran maintenu allumé tant que la page est visible.
+(function(){
+  function isFull(){ return document.fullscreenElement || (window.matchMedia && matchMedia("(display-mode: fullscreen)").matches); }
+  document.addEventListener("pointerdown", function(){
+    if (isFull()) return;
+    var el = document.documentElement;
+    try { var r = el.requestFullscreen ? el.requestFullscreen() : null; if (r && r.catch) r.catch(function(){}); } catch(e){}
+  }, true);
+  var lock = null;
+  function keepAwake(){
+    if (!navigator.wakeLock || document.visibilityState !== "visible") return;
+    navigator.wakeLock.request("screen").then(function(l){ lock = l; }).catch(function(){});
+  }
+  document.addEventListener("visibilitychange", keepAwake);
+  keepAwake();
+})();
 load(cached ? cached.bottles : []); renderAll(); $("src").textContent = "Chargement de la cave…";
 refresh();
 setInterval(refresh, 5*60*1000);
