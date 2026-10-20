@@ -468,7 +468,7 @@ var cached = getToken() ? getCache() : null;
 })();
 // Veille : après 5 min sans contact, un voile sombre couvre l'écran ; le premier appui le retire sans rien ouvrir.
 (function(){
-  var DELAI = 5*60*1000, t = null, v = $("veille");
+  var DELAI = 3*60*1000, t = null, v = $("veille");
   function arm(){ clearTimeout(t); t = setTimeout(function(){ closeSheet(); $("qr").hidden = true; v.hidden = false; }, DELAI); }
   v.addEventListener("pointerdown", function(e){ e.preventDefault(); e.stopPropagation(); v.hidden = true; arm(); }, true);
   v.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); }, true);
