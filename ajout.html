@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest-ajout.webmanifest">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-ajout-192.png">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#8E1E3A">
 <title>Ajouter une bouteille</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -121,7 +125,7 @@ textarea.inp{resize:vertical;min-height:60px}
   <section id="s-found" class="screen" hidden>
     <div class="banner ok" id="found-msg"></div>
     <div id="found-list" class="screen" style="gap:8px"></div>
-    <button class="btn btn-sec" id="found-other">C'est un autre millésime</button>
+    <button class="btn btn-sec" id="found-other">Ajouter un autre millésime</button>
     <button class="btn btn-ghost" id="found-home">Annuler</button>
   </section>
 
@@ -397,15 +401,27 @@ function suggest(s){
 }
 
 function showFound(code, matches){
-  $("found-msg").textContent = matches.length>1 ? "Ce vin est déjà dans la cave, en plusieurs millésimes." : "Ce vin est déjà dans la cave.";
+  $("found-msg").textContent = (matches.length>1 ? "Ce vin est déjà dans la cave, en plusieurs millésimes." : "Ce vin est déjà dans la cave.")+" Choisis combien en ajouter au même millésime, ou ajoute un autre millésime.";
   $("found-list").innerHTML = matches.map(function(b, i){
     return '<div class="match"><b>'+esc(cap(b.nom)||"Cuvée non notée")+'</b>'+
-      '<span class="muted small">'+esc(cap(b.domaine))+' · '+esc(b.region)+' · '+esc(b.millesime||"millésime non noté")+' · ×'+b.quantite+'</span>'+
-      '<button class="btn btn-main" data-plus="'+i+'" style="margin-top:6px">+1 sur cette bouteille</button></div>';
+      '<span class="muted small">'+esc(cap(b.domaine))+' · '+esc(b.region)+' · '+esc(b.millesime||"millésime non noté")+' · '+b.quantite+' en cave</span>'+
+      '<div class="row" style="margin-top:8px;align-items:center">'+
+        '<div class="stepper" style="flex:0 0 auto"><button type="button" data-step="-1" data-i="'+i+'" aria-label="Une de moins">−</button><output id="fq-'+i+'">1</output><button type="button" data-step="1" data-i="'+i+'" aria-label="Une de plus">+</button></div>'+
+        '<button class="btn btn-main" data-plus="'+i+'" id="fb-'+i+'">Ajouter 1 bouteille</button>'+
+      '</div></div>';
   }).join("");
+  var qty = matches.map(function(){ return 1; });
   $("found-list").onclick = function(e){
+    var st = e.target.closest("[data-step]");
+    if (st){
+      var i = +st.dataset.i;
+      qty[i] = Math.max(1, Math.min(99, qty[i] + (+st.dataset.step)));
+      $("fq-"+i).textContent = qty[i];
+      $("fb-"+i).textContent = "Ajouter "+qty[i]+" bouteille"+(qty[i]>1?"s":"");
+      return;
+    }
     var t = e.target.closest("[data-plus]"); if (!t) return;
-    plusOne(matches[+t.dataset.plus], t);
+    plusOne(matches[+t.dataset.plus], t, qty[+t.dataset.plus]);
   };
   $("found-other").onclick = function(){
     var b = matches[0];
@@ -416,14 +432,16 @@ function showFound(code, matches){
   show("s-found");
 }
 
-function plusOne(b, btn){
+function plusOne(b, btn, n){
+  n = n || 1;
+  var label = btn.textContent;
   btn.disabled = true; btn.textContent = "Enregistrement…";
-  var payload = JSON.stringify({token:getToken(), action:"adjust", region:b.region, row:b.row, delta:1, domaine:b.domaine, nom:b.nom});
+  var payload = JSON.stringify({token:getToken(), action:"adjust", region:b.region, row:b.row, delta:n, domaine:b.domaine, nom:b.nom});
   api({action:"write", payload:payload}).then(function(res){
     if (!res.ok) throw new Error(res.error);
     b.quantite = res.quantite;
     done(cap(b.nom)+" : il y en a maintenant "+res.quantite+" en cave.");
-  }).catch(function(err){ btn.disabled = false; btn.textContent = "+1 sur cette bouteille"; alertInline(btn, "Non enregistré : "+err.message); });
+  }).catch(function(err){ btn.disabled = false; btn.textContent = label; alertInline(btn, "Non enregistré : "+err.message); });
 }
 function alertInline(el, text){ var p = document.createElement("p"); p.className="err"; p.textContent=text; el.parentNode.appendChild(p); }
 
