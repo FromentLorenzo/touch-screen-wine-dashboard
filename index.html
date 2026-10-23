@@ -81,8 +81,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 /* Explorateur */
 .search{width:100%;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 .filters{display:flex;flex-direction:column;gap:8px;margin:12px 0}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
-.chip{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:.85rem;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:7px 13px;font-size:.88rem;white-space:nowrap}
+.searchbox{position:relative}
+.searchbox .search{padding-right:44px}
+.clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:50%;background:var(--sunk);font-size:1.1rem;line-height:1}
+.count{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.reset{border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:.95rem;padding:10px 18px;min-height:44px}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .chip small{opacity:.7;margin-left:4px}
 .count{color:var(--muted);font-size:.85rem;margin-bottom:8px}
@@ -157,7 +162,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <section class="panel" aria-labelledby="h-cave">
       <h2 id="h-cave">Toute la cave</h2>
       <div class="filters">
-        <input id="q" class="search" type="search" placeholder="Chercher un domaine, une appellation, un millésime…" autocomplete="off">
+        <form class="searchbox" id="q-form" autocomplete="off">
+          <input id="q" class="search" type="text" enterkeyhint="search" placeholder="Chercher un domaine, une appellation, un millésime…" autocomplete="off">
+          <button type="button" class="clear" id="q-clear" aria-label="Effacer la recherche" hidden>×</button>
+        </form>
         <div class="chips" id="f-statut" role="group" aria-label="Statut"></div>
         <div class="chips" id="f-couleur" role="group" aria-label="Couleur"></div>
         <div class="chips" id="f-region" role="group" aria-label="Région"></div>
@@ -291,7 +299,9 @@ function renderList(){
     if (q && norm([w.domaine,w.nom,w.region,w.couleurRaw,w.mill||"",w.note].join(" ")).indexOf(q)<0) return false;
     return true;
   }).sort(function(a,b){ var o={prio:0,pret:1,garde:2,inconnu:3}; return o[a.statut]-o[b.statut] || a.region.localeCompare(b.region) || a.domaine.localeCompare(b.domaine); });
-  $("count").textContent = plural(rows.length,"référence")+" · "+plural(sum(rows),"bouteille");
+  var filtered = state.q || state.statut!=="tout" || state.couleur!=="tout" || state.region!=="tout";
+  $("count").innerHTML = '<span>'+plural(rows.length,"référence")+" · "+plural(sum(rows),"bouteille")+'</span>'+
+    (filtered ? '<button class="reset" id="reset" type="button">× Retirer les filtres</button>' : '');
   $("list").innerHTML = rows.length ? rows.map(function(w){
     return '<button class="wine" data-id="'+w.id+'"'+(w.qty?'':' style="opacity:.5"')+'>'+
       '<span class="swatch" style="background:'+COL[w.couleur]+'"></span>'+
@@ -406,6 +416,7 @@ document.addEventListener("click", function(e){
   if (t.id==="out") return bump(-1);
   if (t.id==="in") return bump(1);
   if (t.id==="tok-save"){ var v=$("tok-in").value.trim(); if (v){ setToken(v); $("tok").hidden=true; msg("Mot de passe retenu. Tu peux refaire le changement."); if (!LIVE){ closeSheet(); refresh(); } } return; }
+  if (t.id==="reset") return resetFilters();
   if (t.dataset.k){ state[t.dataset.k]=t.dataset.v; renderFilters(); renderList(); return; }
   if (t.dataset.id!=null) openSheet(+t.dataset.id);
 });
@@ -440,7 +451,18 @@ $("unlock").addEventListener("submit", function(e){
   if (!v) return;
   setToken(v); $("unlock-in").value = ""; $("src").textContent = "Vérification…"; refresh();
 });
-$("q").addEventListener("input", function(e){ state.q = e.target.value; renderList(); });
+$("q").addEventListener("input", function(e){ state.q = e.target.value; $("q-clear").hidden = !state.q; renderList(); });
+// Entrée ferme le clavier ; la croix efface la recherche sans rouvrir le clavier
+$("q-form").addEventListener("submit", function(e){ e.preventDefault(); $("q").blur(); });
+$("q-clear").addEventListener("click", function(e){ e.preventDefault(); state.q = ""; $("q").value = ""; $("q-clear").hidden = true; $("q").blur(); renderList(); });
+
+// Remet tous les filtres à zéro
+function resetFilters(){
+  state.q = ""; state.statut = "tout"; state.couleur = "tout"; state.region = "tout";
+  $("q").value = ""; $("q-clear").hidden = true; $("q").blur();
+  renderFilters(); renderList();
+  var l = $("list"); if (l) l.scrollTop = 0;
+}
 
 (function(){
   try {
@@ -468,12 +490,22 @@ var cached = getToken() ? getCache() : null;
 })();
 // Veille : après 5 min sans contact, un voile sombre couvre l'écran ; le premier appui le retire sans rien ouvrir.
 (function(){
-  var DELAI = 3*60*1000, t = null, v = $("veille");
-  function arm(){ clearTimeout(t); t = setTimeout(function(){ closeSheet(); $("qr").hidden = true; v.hidden = false; }, DELAI); }
+  var DELAI = 5*60*1000, t = null, v = $("veille");
+  function arm(){ clearTimeout(t); t = setTimeout(function(){ closeSheet(); $("qr").hidden = true; resetFilters(); v.hidden = false; }, DELAI); }
   v.addEventListener("pointerdown", function(e){ e.preventDefault(); e.stopPropagation(); v.hidden = true; arm(); }, true);
   v.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); }, true);
   document.addEventListener("pointerdown", function(){ if (v.hidden) arm(); }, true);
   arm();
+})();
+// Chaque chargement repart sans filtre (Firefox peut restaurer le texte tapé la veille)
+$("q").value = "";
+// Rechargement complet une fois par jour, vers 4 h : récupère aussi les nouvelles versions de la page
+(function(){
+  var jour = new Date().toDateString();
+  setInterval(function(){
+    var d = new Date();
+    if (d.toDateString() !== jour && d.getHours() >= 4 && opened == null) location.reload();
+  }, 10*60*1000);
 })();
 load(cached ? cached.bottles : []); renderAll(); $("src").textContent = "Chargement de la cave…";
 refresh();
